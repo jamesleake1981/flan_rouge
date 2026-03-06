@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html>
+<body>
+
+<h1>Flamme Rouge Prototype</h1>
+
+<button onclick="simulate(5)">Play 5 Turns</button>
+
+<!-- paste script here -->
+
+<script>
+
+// ===== Utilities =====
+function shuffle(array) {
+  for (let i = array.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [array[i], array[j]] = [array[j], array[i]];
+  }
+  return array;
+}
+
+function draw(rider, n) {
+  while (rider.hand.length < n) {
+    if (rider.deck.length === 0) {
+      rider.deck = shuffle(rider.discard);
+      rider.discard = [];
+    }
+    rider.hand.push(rider.deck.pop());
+  }
+}
+
+// ===== Rider Factory =====
+function createRider(type, player) {
+
+  let deck;
+
+  if (type === "rouleur") {
+    deck = [3,3,3,3,4,4,4,4,4,5,5,5,6,6,7];
+  }
+
+  if (type === "sprinteur") {
+    deck = [2,2,2,2,3,3,3,3,4,4,4,5,5,5,9];
+  }
+
+  shuffle(deck);
+
+  return {
+    player,
+    type,
+    deck,
+    hand: [],
+    discard: [],
+    position: 0
+  };
+}
+
+// ===== Game Setup =====
+const riders = [
+  createRider("rouleur",1),
+  createRider("sprinteur",1),
+  createRider("rouleur",2),
+  createRider("sprinteur",2)
+];
+
+// draw starting hands
+riders.forEach(r => draw(r,4));
+
+
+// ===== Turn Logic =====
+function playTurn() {
+
+  console.log("---- NEW TURN ----");
+
+  // choose card (random for now)
+  const plays = [];
+
+  riders.forEach(r => {
+
+    const cardIndex = Math.floor(Math.random()*r.hand.length);
+    const card = r.hand.splice(cardIndex,1)[0];
+
+    plays.push({rider:r, card});
+  });
+
+
+  // move riders (front first)
+  plays.sort((a,b)=> b.rider.position - a.rider.position);
+
+  plays.forEach(p=>{
+    p.rider.position += p.card;
+    p.rider.discard.push(p.card);
+
+    console.log(
+      `P${p.rider.player} ${p.rider.type} moves ${p.card} -> ${p.rider.position}`
+    );
+  });
+
+
+  slipstream();
+
+  exhaustion();
+
+  riders.forEach(r=> draw(r,4));
+
+  printPositions();
+}
+
+
+// ===== Slipstream =====
+function slipstream() {
+
+  let changed = true;
+
+  while (changed) {
+
+    changed = false;
+
+    const sorted = [...riders].sort((a,b)=>b.position-a.position);
+
+    for (let i=0;i<sorted.length-1;i++) {
+
+      const gap = sorted[i].position - sorted[i+1].position;
+
+      if (gap === 2) {
+        sorted[i+1].position +=1;
+        changed = true;
+        console.log("Slipstream!");
+      }
+    }
+  }
+}
+
+
+// ===== Exhaustion =====
+function exhaustion() {
+
+  riders.forEach(r=>{
+
+    const ahead = riders.some(o =>
+      o.position > r.position &&
+      o.position <= r.position+1
+    );
+
+    if (!ahead) {
+      r.discard.push(2);
+      console.log(`P${r.player} ${r.type} gains exhaustion`);
+    }
+
+  });
+
+}
+
+
+// ===== Debug =====
+function printPositions() {
+
+  console.log("Positions:");
+
+  riders
+    .slice()
+    .sort((a,b)=>b.position-a.position)
+    .forEach(r=>{
+
+      console.log(
+        `P${r.player} ${r.type} @ ${r.position}`
+      );
+    });
+}
+
+
+// ===== Run Example =====
+function simulate(turns=10){
+  for(let i=0;i<turns;i++){
+    playTurn();
+  }
+}
+
+</script>
+
+</body>
+</html>
